@@ -30,8 +30,6 @@ use std::marker::Sized;
 pub(crate) mod tests;
 
 #[macro_use]
-mod macros;
-#[macro_use]
 mod macros_simple;
 
 trait Available {
@@ -40,35 +38,35 @@ trait Available {
 
 trait UnsafeBitPacker {
     const BLOCK_LEN: usize;
-    unsafe fn compress(decompressed: &[u32], compressed: &mut [u8], num_bits: u8) -> usize;
+    unsafe fn compress(decompressed: &[u64], compressed: &mut [u8], num_bits: u8) -> usize;
     unsafe fn compress_sorted(
-        initial: u32,
-        decompressed: &[u32],
+        initial: u64,
+        decompressed: &[u64],
         compressed: &mut [u8],
         num_bits: u8,
     ) -> usize;
     unsafe fn compress_strictly_sorted(
-        initial: Option<u32>,
-        decompressed: &[u32],
+        initial: Option<u64>,
+        decompressed: &[u64],
         compressed: &mut [u8],
         num_bits: u8,
     ) -> usize;
-    unsafe fn decompress(compressed: &[u8], decompressed: &mut [u32], num_bits: u8) -> usize;
+    unsafe fn decompress(compressed: &[u8], decompressed: &mut [u64], num_bits: u8) -> usize;
     unsafe fn decompress_sorted(
-        initial: u32,
+        initial: u64,
         compressed: &[u8],
-        decompressed: &mut [u32],
+        decompressed: &mut [u64],
         num_bits: u8,
     ) -> usize;
     unsafe fn decompress_strictly_sorted(
-        initial: Option<u32>,
+        initial: Option<u64>,
         compressed: &[u8],
-        decompressed: &mut [u32],
+        decompressed: &mut [u64],
         num_bits: u8,
     ) -> usize;
-    unsafe fn num_bits(decompressed: &[u32]) -> u8;
-    unsafe fn num_bits_sorted(initial: u32, decompressed: &[u32]) -> u8;
-    unsafe fn num_bits_strictly_sorted(initial: Option<u32>, decompressed: &[u32]) -> u8;
+    unsafe fn num_bits(decompressed: &[u64]) -> u8;
+    unsafe fn num_bits_sorted(initial: u64, decompressed: &[u64]) -> u8;
+    unsafe fn num_bits_strictly_sorted(initial: Option<u64>, decompressed: &[u64]) -> u8;
 }
 
 /// # Examples without delta-encoding
@@ -78,7 +76,7 @@ trait UnsafeBitPacker {
 /// use bitpacking::{BitPacker4x, BitPacker};
 ///
 /// # fn main() {
-/// # let my_data: Vec<u32> = vec![7, 7, 7, 7, 11, 10, 15, 13, 6, 5, 3, 14, 5, 7,
+/// # let my_data: Vec<u64> = vec![7, 7, 7, 7, 11, 10, 15, 13, 6, 5, 3, 14, 5, 7,
 /// #    15, 12, 1, 10, 8, 10, 12, 14, 13, 1, 10, 1, 1, 10, 4, 15, 12,
 /// #    1, 2, 0, 8, 5, 14, 5, 2, 4, 1, 6, 14, 13, 5, 10, 10, 1, 6, 4,
 /// #    1, 12, 1, 1, 5, 15, 15, 2, 8, 6, 4, 3, 10, 8, 8, 9, 2, 6, 10,
@@ -99,7 +97,7 @@ trait UnsafeBitPacker {
 /// assert_eq!((num_bits as usize) *  BitPacker4x::BLOCK_LEN / 8, compressed_len);
 ///
 /// // Decompressing
-/// let mut decompressed = vec![0u32; BitPacker4x::BLOCK_LEN];
+/// let mut decompressed = vec![0u64; BitPacker4x::BLOCK_LEN];
 /// bitpacker.decompress(&compressed[..compressed_len], &mut decompressed[..], num_bits);
 ///
 /// assert_eq!(&my_data, &decompressed);
@@ -123,7 +121,7 @@ trait UnsafeBitPacker {
 /// use bitpacking::{BitPacker4x, BitPacker};
 ///
 /// # fn main() {
-/// # let my_data: Vec<u32> = vec![0, 5, 6, 8, 12, 21, 30, 38,
+/// # let my_data: Vec<u64> = vec![0, 5, 6, 8, 12, 21, 30, 38,
 /// # 46, 52, 59, 61, 62, 62, 71, 71, 73, 74, 76,
 /// # 77, 80, 87, 96, 99, 105, 114, 119, 121, 128,
 /// # 133, 138, 145, 152, 161, 161, 166, 175, 176,
@@ -148,7 +146,7 @@ trait UnsafeBitPacker {
 /// //
 /// // When encoding the second block however, you will want to pass the last
 /// // value of the first block.
-/// let initial_value = 0u32;
+/// let initial_value = 0u64;
 ///
 /// let bitpacker = BitPacker4x::new();
 ///
@@ -164,7 +162,7 @@ trait UnsafeBitPacker {
 /// assert_eq!((num_bits as usize) *  BitPacker4x::BLOCK_LEN / 8, compressed_len);
 ///
 /// // Decompressing
-/// let mut decompressed = vec![0u32; BitPacker4x::BLOCK_LEN];
+/// let mut decompressed = vec![0u64; BitPacker4x::BLOCK_LEN];
 ///
 /// // The initial value must be the same as the one passed
 /// // when compressing the block.
@@ -195,7 +193,7 @@ pub trait BitPacker: Sized + Clone + Copy {
     ///
     /// - Panics if the compressed destination array is too small
     /// - Panics if `decompressed` length is not exactly the `BLOCK_LEN`.
-    fn compress(&self, decompressed: &[u32], compressed: &mut [u8], num_bits: u8) -> usize;
+    fn compress(&self, decompressed: &[u64], compressed: &mut [u8], num_bits: u8) -> usize;
 
     /// Delta encode and compressed the `decompressed` array.
     ///
@@ -218,8 +216,8 @@ pub trait BitPacker: Sized + Clone + Copy {
     /// - Panics if the decompressed array is not exactly the `BLOCK_LEN`.
     fn compress_sorted(
         &self,
-        initial: u32,
-        decompressed: &[u32],
+        initial: u64,
+        decompressed: &[u64],
         compressed: &mut [u8],
         num_bits: u8,
     ) -> usize;
@@ -244,8 +242,8 @@ pub trait BitPacker: Sized + Clone + Copy {
     /// Returns the amount of bytes in the compressed block.
     fn compress_strictly_sorted(
         &self,
-        initial: Option<u32>,
-        decompressed: &[u32],
+        initial: Option<u64>,
+        decompressed: &[u64],
         compressed: &mut [u8],
         num_bits: u8,
     ) -> usize;
@@ -257,7 +255,7 @@ pub trait BitPacker: Sized + Clone + Copy {
     /// # Panics
     ///
     /// Panics if the compressed array is too short, or the decompressed array is too short.
-    fn decompress(&self, compressed: &[u8], decompressed: &mut [u32], num_bits: u8) -> usize;
+    fn decompress(&self, compressed: &[u8], decompressed: &mut [u64], num_bits: u8) -> usize;
 
     /// Decompress the`compress`array to the `decompressed` array.
     /// The `compressed` array is assumed to have been delta-encoded and compressed.
@@ -273,9 +271,9 @@ pub trait BitPacker: Sized + Clone + Copy {
     /// - Panics if the decompressed array is too short.
     fn decompress_sorted(
         &self,
-        initial: u32,
+        initial: u64,
         compressed: &[u8],
-        decompressed: &mut [u32],
+        decompressed: &mut [u64],
         num_bits: u8,
     ) -> usize;
 
@@ -294,9 +292,9 @@ pub trait BitPacker: Sized + Clone + Copy {
 
     fn decompress_strictly_sorted(
         &self,
-        initial: Option<u32>,
+        initial: Option<u64>,
         compressed: &[u8],
-        decompressed: &mut [u32],
+        decompressed: &mut [u64],
         num_bits: u8,
     ) -> usize;
 
@@ -306,7 +304,7 @@ pub trait BitPacker: Sized + Clone + Copy {
     /// # Panics
     ///
     /// Panics if `decompressed`'s len is not exactly `BLOCK_LEN`.
-    fn num_bits(&self, decompressed: &[u32]) -> u8;
+    fn num_bits(&self, decompressed: &[u64]) -> u8;
 
     /// Returns the minimum number of bits used to represent the largest `delta` in the deltas in the
     /// `decompressed` block.
@@ -314,7 +312,7 @@ pub trait BitPacker: Sized + Clone + Copy {
     /// # Panics
     ///
     /// Panics if `decompressed`'s len is not exactly `BLOCK_LEN`.
-    fn num_bits_sorted(&self, initial: u32, decompressed: &[u32]) -> u8;
+    fn num_bits_sorted(&self, initial: u64, decompressed: &[u64]) -> u8;
 
     /// Returns the minimum number of bits used to represent the largest `delta-1` in the deltas in the
     /// `decompressed` block.
@@ -322,7 +320,7 @@ pub trait BitPacker: Sized + Clone + Copy {
     /// # Panics
     ///
     /// Panics if `decompressed`'s len is not exactly `BLOCK_LEN`.
-    fn num_bits_strictly_sorted(&self, initial: Option<u32>, decompressed: &[u32]) -> u8;
+    fn num_bits_strictly_sorted(&self, initial: Option<u64>, decompressed: &[u64]) -> u8;
 
     /// Returns the size of a compressed block.
     fn compressed_block_size(num_bits: u8) -> usize {
@@ -331,7 +329,7 @@ pub trait BitPacker: Sized + Clone + Copy {
 }
 
 /// Returns the most significant bit.&self,
-fn most_significant_bit(v: u32) -> u8 {
+fn most_significant_bit(v: u64) -> u8 {
     if v == 0 {
         0
     } else {
@@ -339,31 +337,13 @@ fn most_significant_bit(v: u32) -> u8 {
     }
 }
 
-#[cfg(all(feature = "bitpacker1x", any(test, not(debug_assertions))))]
-mod bitpacker1x;
-#[cfg(all(feature = "bitpacker4x", any(test, not(debug_assertions))))]
-mod bitpacker4x;
-
-#[cfg(all(feature = "bitpacker1x", debug_assertions))]
-mod bitpacker1x_simple;
 #[cfg(all(feature = "bitpacker4x", debug_assertions))]
 mod bitpacker4x_simple;
-
-#[cfg(feature = "bitpacker8x")]
-mod bitpacker8x;
-
-#[cfg(all(feature = "bitpacker1x", not(debug_assertions)))]
-pub use bitpacker1x::BitPacker1x;
-#[cfg(all(feature = "bitpacker1x", debug_assertions))]
-pub use bitpacker1x_simple::BitPacker1x;
 
 #[cfg(all(feature = "bitpacker4x", not(debug_assertions)))]
 pub use bitpacker4x::BitPacker4x;
 #[cfg(all(feature = "bitpacker4x", debug_assertions))]
 pub use bitpacker4x_simple::BitPacker4x;
-
-#[cfg(feature = "bitpacker8x")]
-pub use bitpacker8x::BitPacker8x;
 
 #[cfg(test)]
 mod tests_unit {
@@ -373,7 +353,7 @@ mod tests_unit {
     #[should_panic(expected = "`decompressed`'s len is not `BLOCK_LEN=128`")]
     fn test_num_bits_block_too_long() {
         let bit_packer = BitPacker4x::new();
-        let v = vec![0u32; BitPacker4x::BLOCK_LEN + 1];
+        let v = vec![0u64; BitPacker4x::BLOCK_LEN + 1];
         bit_packer.num_bits(&v[..]);
     }
 
@@ -381,7 +361,7 @@ mod tests_unit {
     #[should_panic(expected = "`decompressed`'s len is not `BLOCK_LEN=128`")]
     fn test_num_bits_block_too_short() {
         let bit_packer = BitPacker4x::new();
-        let v = vec![0u32; BitPacker4x::BLOCK_LEN - 1];
+        let v = vec![0u64; BitPacker4x::BLOCK_LEN - 1];
         bit_packer.num_bits(&v[..]);
     }
 }
@@ -395,7 +375,7 @@ mod functional_tests {
         #[test]
         #[ignore]
         fn check_block(
-            values in prop::collection::vec(u32::arbitrary(), BitPacker4x::BLOCK_LEN),
+            values in prop::collection::vec(u64::arbitrary(), BitPacker4x::BLOCK_LEN),
         ) {
             let bit_packer = BitPacker4x::new();
             let bit_width = bit_packer.num_bits(&*values);
@@ -412,7 +392,7 @@ mod functional_tests {
         #[ignore]
         #[test]
         fn check_sorted_block(
-            (values, init_value) in prop::collection::vec(u32::arbitrary(), BitPacker4x::BLOCK_LEN).prop_flat_map(|mut values| {
+            (values, init_value) in prop::collection::vec(u64::arbitrary(), BitPacker4x::BLOCK_LEN).prop_flat_map(|mut values| {
                 values.sort();
                 let min_value = values[0];
                 (Just(values), (0..=min_value))

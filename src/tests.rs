@@ -5,16 +5,16 @@ use self::rand::prelude::*;
 use super::most_significant_bit;
 use super::UnsafeBitPacker;
 
-pub fn generate_array(n: usize, max_num_bits: u8) -> Vec<u32> {
+pub fn generate_array(n: usize, max_num_bits: u8) -> Vec<u64> {
     assert!(max_num_bits <= 32u8);
     let seed: &[u8; 32] = &[1u8; 32];
     let mut rng = StdRng::from_seed(*seed);
     let max_val: u64 = 1u64 << max_num_bits;
     let between = Uniform::from(0..max_val);
-    (0..n).map(|_| between.sample(&mut rng) as u32).collect()
+    (0..n).map(|_| between.sample(&mut rng) as u64).collect()
 }
 
-fn integrate_data(initial: u32, data: &mut [u32]) {
+fn integrate_data(initial: u64, data: &mut [u64]) {
     let mut cumul = initial;
     let len = data.len();
     for i in 0..len {
@@ -23,8 +23,8 @@ fn integrate_data(initial: u32, data: &mut [u32]) {
     }
 }
 
-fn strict_integrate_data(initial: Option<u32>, data: &mut [u32]) {
-    let mut cumul = initial.unwrap_or(u32::MAX);
+fn strict_integrate_data(initial: Option<u64>, data: &mut [u64]) {
+    let mut cumul = initial.unwrap_or(u64::MAX);
     let len = data.len();
     for i in 0..len {
         cumul = cumul.wrapping_add(data[i]).wrapping_add(1);
@@ -52,16 +52,16 @@ pub(crate) fn test_util_compatible<TLeft: UnsafeBitPacker, TRight: UnsafeBitPack
     }
 }
 
-fn test_util_compress_decompress<TBitPacker: UnsafeBitPacker>(data: &[u32], expected_num_bits: u8) {
+fn test_util_compress_decompress<TBitPacker: UnsafeBitPacker>(data: &[u64], expected_num_bits: u8) {
     assert_eq!(data.len(), TBitPacker::BLOCK_LEN);
 
     unsafe {
-        let mut original = vec![0u32; data.len()];
+        let mut original = vec![0u64; data.len()];
 
         original.copy_from_slice(data);
 
         let mut compressed = vec![0u8; (TBitPacker::BLOCK_LEN as usize) * 4];
-        let mut result = vec![0u32; TBitPacker::BLOCK_LEN as usize];
+        let mut result = vec![0u64; TBitPacker::BLOCK_LEN as usize];
 
         let numbits = TBitPacker::num_bits(&original[..]);
         assert_eq!(numbits, expected_num_bits);
@@ -90,16 +90,16 @@ fn test_util_compress_decompress<TBitPacker: UnsafeBitPacker>(data: &[u32], expe
 }
 
 fn test_util_compress_decompress_delta<TBitPacker: UnsafeBitPacker>(
-    data: &[u32],
+    data: &[u64],
     expected_num_bits: u8,
 ) {
     assert_eq!(data.len(), TBitPacker::BLOCK_LEN);
 
-    for initial in 0u32..2u32 {
+    for initial in 0u64..2u64 {
         let mut original = data.to_owned();
         integrate_data(initial, &mut original);
         let mut compressed = vec![0u8; (TBitPacker::BLOCK_LEN as usize) * 4];
-        let mut result = vec![0u32; TBitPacker::BLOCK_LEN as usize];
+        let mut result = vec![0u64; TBitPacker::BLOCK_LEN as usize];
 
         unsafe {
             let numbits = TBitPacker::num_bits_sorted(initial, &original[..]);
@@ -141,15 +141,15 @@ fn test_util_compress_decompress_delta<TBitPacker: UnsafeBitPacker>(
 }
 
 fn test_util_compress_decompress_strict_delta<TBitPacker: UnsafeBitPacker>(
-    data: &[u32],
+    data: &[u64],
     expected_num_bits: u8,
 ) {
     assert_eq!(data.len(), TBitPacker::BLOCK_LEN);
-    for initial in [None, Some(0u32), Some(1u32)] {
+    for initial in [None, Some(0u64), Some(1u64)] {
         let mut original = data.to_owned();
         strict_integrate_data(initial, &mut original);
         let mut compressed = vec![0u8; (TBitPacker::BLOCK_LEN as usize) * 4];
-        let mut result = vec![0u32; TBitPacker::BLOCK_LEN as usize];
+        let mut result = vec![0u64; TBitPacker::BLOCK_LEN as usize];
 
         unsafe {
             let numbits = TBitPacker::num_bits_strictly_sorted(initial, &original[..]);
